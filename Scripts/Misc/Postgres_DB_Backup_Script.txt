@@ -1,0 +1,64 @@
+#!/bin/bash
+#
+# <%= @database %> Postgres backup script
+#
+# This file is managed by puppet and should not be edited manually
+#
+
+#Recording Start Time
+start_time="$(date -u +%s)"
+
+HOST=`hostname -s`
+
+#BACKUP ID
+BACKUPID=${HOST}_<%= @database %>_Daily_backup
+
+BACKUP_NAME="<%= @database %> Postgres Database Backup"
+DATE="`date +%m_%d_%Y`"
+BACKUP_HOME="/<%= @mount_dir %>/<%= @database %>_backup"
+BACKUP_DIR="${BACKUP_HOME}/${HOST}"
+
+if [ ! -d "${BACKUP_DIR}" ]; then
+  mkdir -p "${BACKUP_DIR}"
+fi
+
+LOGDIR="/opt/<%= @database %>_backup/logs"
+if [ ! -d "${LOGDIR}" ]; then
+  mkdir -p "${LOGDIR}"
+fi
+
+LOGFILE="${LOGDIR}/<%= @database %>_backup-${DATE}.log"
+PGPASSFILE="<%= @pg_passfile %>"
+PGHOST="<%= @pg_host %>"
+PGUSER="<%= @pg_user %>"
+PGDATABASE="<%= @database %>"
+
+#Backup start notification
+echo -e "Backup ID : ${BACKUPID} started at `date`" >> ${LOGFILE}
+
+echo "===========================================" >> ${LOGFILE}
+echo "${BACKUP_NAME} Backup Start Time : `date`" >> ${LOGFILE}
+echo "===========================================" >> ${LOGFILE}
+
+PGPASSFILE=${PGPASSFILE} pg_dump -h${PGHOST} -U${PGUSER} -d${PGDATABASE} > ${BACKUP_DIR}/<%= @database %>-${DATE}.bak
+
+echo "===========================================" >> ${LOGFILE}
+echo "${BACKUP_NAME} Backup End Time : `date`" >> ${LOGFILE}
+echo "===========================================" >> ${LOGFILE}
+
+echo "Compressing the backup File :`date`"  >> ${LOGFILE}
+
+<%- if @dump_compress -%>
+cd ${BACKUP_DIR}
+tar -cvzf ${BACKUP_DIR}/<%= @database %>-${DATE}.bak.tar.gz ${BACKUP_DIR}/<%= @database %>-${DATE}.bak
+<%- else -%>
+echo "No backup compression has been set" :`date`"  >> ${LOGFILE}
+<%- end -%>
+echo "Compression process completed : `date`" >> ${LOGFILE}
+#Recording End Time
+end_time="$(date -u +%s)"
+#Calculating total time elapsed
+elapsed="$(($end_time-$start_time))"
+#Backup end notification
+echo -e "Backup ID : ${BACKUPID} ended at `date`" >> ${LOGFILE}
+echo -e "Total time taken for whole backup process to complete: $elapsed seconds" >> ${LOGFILE}
